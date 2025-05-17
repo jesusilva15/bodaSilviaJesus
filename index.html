@@ -34,25 +34,29 @@
 
     <!-- Cargar las nuevas librerías de Google Identity Services -->
     <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script src="https://apis.google.com/js/api.js" async defer></script>
 
     <script>
         const CLIENT_ID = '381451210993-le8vnu9akeospf5otsth28gqfpfiqdor.apps.googleusercontent.com';  // Reemplaza con tu Client ID de Google
+        const API_KEY = 'AIzaSyBRKOLQ8geTP_IEyazlzupv_AS-GhFskN8';      // Reemplaza con tu API Key de Google
         const FOLDER_ID = '1tOMPi7-mWwPJTBJioaxugDeT5Uo47MH_';  // ID de la carpeta en Google Drive
 
         // Función para manejar la subida con Google Picker
         function createPicker(token) {
-            const view = new google.picker.DocsView(google.picker.ViewId.DOCS)
-                .setIncludeFolders(true)
-                .setSelectFolderEnabled(true)
-                .setParent(FOLDER_ID); // Seleccionar la carpeta
+            gapi.load('picker', {'callback': function() {
+                const view = new google.picker.DocsView(google.picker.ViewId.DOCS)
+                    .setIncludeFolders(true)
+                    .setSelectFolderEnabled(true)
+                    .setParent(FOLDER_ID); // Seleccionar la carpeta
 
-            const picker = new google.picker.PickerBuilder()
-                .addView(view)
-                .setOAuthToken(token)
-                .setDeveloperKey(CLIENT_ID)
-                .setCallback(pickerCallback)
-                .build();
-            picker.setVisible(true);
+                const picker = new google.picker.PickerBuilder()
+                    .addView(view)
+                    .setOAuthToken(token)
+                    .setDeveloperKey(API_KEY)
+                    .setCallback(pickerCallback)
+                    .build();
+                picker.setVisible(true);
+            }});
         }
 
         // Función para manejar la selección de archivo en el Picker
@@ -60,7 +64,7 @@
             if (data.action == google.picker.Action.PICKED) {
                 const fileId = data.docs[0].id;
                 console.log("Archivo seleccionado: " + fileId);
-                alert("Foto subida con éxito!");
+                alert("¡Foto subida con éxito!");
             }
         }
 
@@ -78,6 +82,7 @@
 
         // Iniciar autenticación y mostrar el botón de Google
         function init() {
+            // Iniciar la autenticación cuando el botón se haga clic
             document.getElementById('uploadBtn').addEventListener('click', authenticate);
         }
 
