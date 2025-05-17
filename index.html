@@ -11,11 +11,6 @@
             color: #333;
             text-align: center;
         }
-        .gallery img {
-            width: 100px;
-            margin: 10px;
-            border-radius: 8px;
-        }
         .upload-btn {
             background-color: #4CAF50;
             color: white;
@@ -33,18 +28,38 @@
 <body>
     <h1>Bienvenidos a nuestra Boda 2025</h1>
     <p>¡Sube tus fotos aquí y comparte con nosotros este gran día!</p>
+
+    <!-- Botón para subir fotos -->
+    <button class="upload-btn" id="uploadBtn">Subir Foto</button>
+
+    <!-- Google Drive Uploader -->
+    <script src="https://cdn.rawgit.com/simonh1000/Google-Drive-Uploader/master/google-drive-uploader.min.js"></script>
+    <script>
+        // Configura el enlace de la carpeta pública de Google Drive
+        const folderID = 'https://drive.google.com/drive/folders/1tOMPi7-mWwPJTBJioaxugDeT5Uo47MH_?usp=sharing';
+
+        // Configura el botón de subida
+        const uploadButton = document.getElementById('uploadBtn');
+        const uploader = new GoogleDriveUploader({
+            clientId: '381451210993-le8vnu9akeospf5otsth28gqfpfiqdor.apps.googleusercontent.com',
+            folderId: folderID,
+            button: uploadButton,
+            onComplete: function (response) {
+                console.log('¡Subida completada!');
+                alert('¡Foto subida con éxito!');
+            },
+            onError: function (error) {
+                console.error('Error al subir: ', error);
+                alert('Ocurrió un error al subir la foto. Intenta nuevamente.');
+            }
+        });
+
+        // Activar el proceso de subida al hacer clic en el botón
+        uploadButton.addEventListener('click', function () {
+            uploader.open();
+        });
+    </script>
     
-    <div class="gallery">
-        <h2>Galería de fotos</h2>
-        <!-- Aquí puedes poner las fotos predeterminadas -->
-        <img src="https://via.placeholder.com/150" alt="Foto de boda 1">
-        <img src="https://via.placeholder.com/150" alt="Foto de boda 2">
-        <img src="https://via.placeholder.com/150" alt="Foto de boda 3">
-    </div>
-
-    <p><strong>¡Sube tus fotos a través del siguiente enlace!</strong></p>
-    <a href="https://docs.google.com/forms/d/e/1FAIpQLScb_mAf0HdEEhZQf8HhtiIZP3CpZra7kCcuWEd0dfZNYriOSA/viewform?usp=header" class="upload-btn" target="_blank">Subir Foto</a>
-
     <footer>
         <p>Escanea el código QR para acceder.</p>
     </footer>
