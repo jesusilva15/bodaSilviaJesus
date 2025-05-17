@@ -32,47 +32,27 @@
     <!-- Botón para abrir el Google Picker -->
     <button class="upload-btn" id="uploadBtn">Seleccionar Foto</button>
 
-    <!-- Cargar la API de Google Picker -->
-    <script src="https://apis.google.com/js/api.js"></script>
-    <script src="https://apis.google.com/js/platform.js"></script>
+    <!-- Cargar las nuevas librerías de Google Identity Services -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
 
     <script>
         const CLIENT_ID = '381451210993-le8vnu9akeospf5otsth28gqfpfiqdor.apps.googleusercontent.com';  // Reemplaza con tu Client ID de Google
-        const API_KEY = 'AIzaSyBRKOLQ8geTP_IEyazlzupv_AS-GhFskN8';      // Reemplaza con tu API Key de Google
         const FOLDER_ID = '1tOMPi7-mWwPJTBJioaxugDeT5Uo47MH_';  // ID de la carpeta en Google Drive
 
-        let pickerApiLoaded = false;
-        let oauthToken;
+        // Función para manejar la subida con Google Picker
+        function createPicker(token) {
+            const view = new google.picker.DocsView(google.picker.ViewId.DOCS)
+                .setIncludeFolders(true)
+                .setSelectFolderEnabled(true)
+                .setParent(FOLDER_ID); // Seleccionar la carpeta
 
-        // Cargar la API de Google Picker
-        function loadPicker() {
-            gapi.load('picker', {'callback': createPicker});
-        }
-
-        // Cargar la API de Google
-        function loadApi() {
-            gapi.client.setApiKey(API_KEY);
-            gapi.client.load('https://www.googleapis.com/discovery/v1/apis/drive/v3/rest', function() {
-                pickerApiLoaded = true;
-            });
-        }
-
-        // Función para manejar la subida
-        function createPicker() {
-            if (pickerApiLoaded && oauthToken) {
-                const view = new google.picker.DocsView(google.picker.ViewId.DOCS)
-                    .setIncludeFolders(true)
-                    .setSelectFolderEnabled(true)
-                    .setParent(FOLDER_ID); // Seleccionar la carpeta
-
-                const picker = new google.picker.PickerBuilder()
-                    .addView(view)
-                    .setOAuthToken(oauthToken)
-                    .setDeveloperKey(API_KEY)
-                    .setCallback(pickerCallback)
-                    .build();
-                picker.setVisible(true);
-            }
+            const picker = new google.picker.PickerBuilder()
+                .addView(view)
+                .setOAuthToken(token)
+                .setDeveloperKey(CLIENT_ID)
+                .setCallback(pickerCallback)
+                .build();
+            picker.setVisible(true);
         }
 
         // Función para manejar la selección de archivo en el Picker
@@ -84,28 +64,25 @@
             }
         }
 
-        // Iniciar autenticación de Google
+        // Función para autenticar al usuario usando Google Identity Services (GIS)
         function authenticate() {
-            gapi.auth2.getAuthInstance().signIn().then(function() {
-                oauthToken = gapi.auth2.getAuthInstance().currentUser.get().getAuthResponse().access_token;
-                loadPicker();
+            google.accounts.id.prompt((response) => {
+                if (response.credential) {
+                    // Usar el token de autenticación proporcionado por GIS
+                    createPicker(response.credential);
+                } else {
+                    console.error("Autenticación fallida");
+                }
             });
         }
 
-        // Iniciar el proceso de autenticación
+        // Iniciar autenticación y mostrar el botón de Google
         function init() {
-            gapi.load('client:auth2', function() {
-                gapi.auth2.init({
-                    client_id: CLIENT_ID,
-                    cookiepolicy: 'single_host_origin'  // Configura la política de cookies
-                }).then(function () {
-                    document.getElementById('uploadBtn').addEventListener('click', authenticate);
-                });
-            });
+            document.getElementById('uploadBtn').addEventListener('click', authenticate);
         }
 
-        // Llamar la función de inicialización cuando la API de Google esté lista
-        init();
+        // Llamar a la función init cuando la página haya cargado
+        window.onload = init;
     </script>
 
     <footer>
