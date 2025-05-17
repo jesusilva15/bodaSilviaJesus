@@ -30,23 +30,43 @@
     <p>¡Sube tus fotos aquí y comparte con nosotros este gran día!</p>
 
     <!-- Botón para iniciar el proceso de subida -->
-    <button class="upload-btn" id="uploadBtn">Seleccionar Foto</button>
+    <button class="upload-btn" id="uploadBtn">Subir Foto</button>
 
     <!-- Div para mostrar errores o mensajes -->
     <div id="message"></div>
+
+    <!-- Google Sign-In button (using GIS) -->
+    <div id="g_id_onload"
+         data-client_id="YOUR_CLIENT_ID.apps.googleusercontent.com"
+         data-context="signin"
+         data-ux_mode="popup"
+         data-login_uri="YOUR_LOGIN_URI"  <!-- Replace with your actual login URI -->
+         data-auto_prompt="false">
+    </div>
+
+    <div class="g_id_signin"
+         data-type="standard"
+         data-size="large"
+         data-theme="outline"
+         data-text="sign_in_with"
+         data-shape="rectangular"
+         data-logo_alignment="left">
+    </div>
 
     <!-- Cargar las nuevas librerías de Google Identity Services -->
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script src="https://apis.google.com/js/api.js" async defer></script>
 
     <script>
-       const CLIENT_ID = '381451210993-le8vnu9akeospf5otsth28gqfpfiqdor.apps.googleusercontent.com';  // Reemplaza con tu Client ID de Google
-        const API_KEY = 'AIzaSyBRKOLQ8geTP_IEyazlzupv_AS-GhFskN8';      // Reemplaza con tu API Key de Google
-        const FOLDER_ID = '1tOMPi7-mWwPJTBJioaxugDeT5Uo47MH_';  // ID de la carpeta en Google Drive
+        const CLIENT_ID = 'YOUR_CLIENT_ID.apps.googleusercontent.com';  // Reemplaza con tu Client ID de Google
+        const API_KEY = 'YOUR_API_KEY';      // Reemplaza con tu API Key de Google
+        const FOLDER_ID = 'YOUR_FOLDER_ID';  // ID de la carpeta en Google Drive
+        const LOGIN_URI = 'YOUR_LOGIN_URI'; // Replace with your actual login URI
 
         let oauthToken; // Variable para almacenar el token OAuth
+        let isSignedIn = false; // Track sign-in status
 
-        // 1. Inicializar la API de Google (gapi)
+        // 1. Initialize the Google API client library
         function initClient() {
             gapi.client.init({
                 apiKey: API_KEY,
@@ -54,51 +74,63 @@
                 discoveryDocs: ["https://www.googleapis.com/discovery/v1/apis/drive/v3/rest"],
                 scope: "https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/drive.readonly"
             }).then(function () {
-                // 2. Escuchar cambios en el estado de autorización.
+                // Listen for sign-in state changes.  This is now less critical
+                // with the GIS button, but still good practice
                 gapi.auth2.getAuthInstance().isSignedIn.listen(updateSigninStatus);
 
-                // 3.  Cargar el estado de autorización actual.
+                // Handle the initial sign-in state.
                 updateSigninStatus(gapi.auth2.getAuthInstance().isSignedIn.get());
 
             }, function(error) {
-              appendPre(JSON.stringify(error, null, 2));
+                appendPre(JSON.stringify(error, null, 2));
             });
         }
 
-        /**
-         *  Imprime el resultado en el elemento 'output'.
-         */
         function appendPre(message) {
-          var pre = document.getElementById('message');
-          var textContent = document.createTextNode(message + '\n');
-          pre.appendChild(textContent);
+            var pre = document.getElementById('message');
+            var textContent = document.createTextNode(message + '\n');
+            pre.appendChild(textContent);
         }
 
-        // 4. Actualizar el estado de inicio de sesión.
-        var updateSigninStatus = function(isSignedIn) {
-          if (isSignedIn) {
-              console.log("Usuario autenticado");
-              oauthToken = gapi.auth2.getAuthInstance().currentUser.get().getAuthResponse().access_token;
-              document.getElementById('uploadBtn').onclick = function() { createPicker(oauthToken); };
-          } else {
-              console.log("Usuario no autenticado");
-              document.getElementById('uploadBtn').onclick = function() { handleAuthClick(); };
-          }
+        // 2. Update sign-in status
+        var updateSigninStatus = function(isSignedInValue) {
+            isSignedIn = isSignedInValue;
+            if (isSignedIn) {
+                console.log("Usuario autenticado");
+                oauthToken = gapi.auth2.getAuthInstance().currentUser.get().getAuthResponse().access_token;
+                document.getElementById('uploadBtn').onclick = function() { createPicker(oauthToken); };
+                document.getElementById('uploadBtn').disabled = false; // Enable the button
+            } else {
+                console.log("Usuario no autenticado");
+                //  No longer directly handling auth click.  The GIS button does that.
+                document.getElementById('uploadBtn').onclick = null; // Remove old handler
+                document.getElementById('uploadBtn').disabled = true; // Disable the button
+
+            }
         };
 
-        // 5.  Manejar el clic en el botón de autorización.
-        var handleAuthClick = function(event) {
-          gapi.auth2.getAuthInstance().signIn();
-        };
 
+        // Function to handle successful sign-in with GIS
+        function onSignIn(googleUser) {
+            // Get the OAuth token from the GoogleUser object
+            oauthToken = googleUser.getAuthResponse().access_token;
+            console.log("GIS sign-in successful, token:", oauthToken);
+            updateSigninStatus(true);  // Update status manually.  gapi may not always fire.
+        }
 
-        // Función para manejar la subida con Google Picker
+        // Function to handle sign-in failures with GIS (optional)
+        function onSignInFailure(error) {
+            console.error("GIS sign-in failed:", error);
+            appendPre("Sign-in failed.  See console for details.");
+        }
+
+        // Function to create and show the file picker
         function createPicker(token) {
             gapi.load('picker', {'callback': function() {
                 const view = new google.picker.DocsView(google.picker.ViewId.DOCS)
                     .setIncludeFolders(true)
                     .setSelectFolderEnabled(true)
-                    .setParent(FOLDER_ID); // Seleccionar la carpeta
+                    .setParent(FOLDER_ID);
 
                 const picker = new google.picker.PickerBuilder()
                     .addView(view)
@@ -110,14 +142,12 @@
             }});
         }
 
-        // Función para manejar la selección de archivo en el Picker
+        // Function to handle the file selection from the picker
         function pickerCallback(data) {
             if (data.action == google.picker.Action.PICKED) {
                 const fileId = data.docs[0].id;
                 const fileName = data.docs[0].name;
                 console.log("Archivo seleccionado: " + fileId);
-
-                // Obtener el archivo desde Google Drive usando el fileId
                 getFileFromDrive(fileId, oauthToken, fileName);
 
             } else if (data.action == google.picker.Action.CANCEL) {
@@ -125,20 +155,15 @@
             }
         }
 
-        // Función para obtener el archivo desde Google Drive y subirlo
+        // Function to get the file from Google Drive and upload it
         function getFileFromDrive(fileId, token, fileName) {
             gapi.client.drive.files.get({
                 'fileId': fileId,
-                'alt': 'media' // Esto es importante para obtener el contenido del archivo
+                'alt': 'media'
             }).then(function(response) {
-                // El contenido del archivo está en response.body
                 const fileContent = response.body;
-
-                // Crear un objeto File simulado
                 const file = new Blob([fileContent]);
-                file.name = fileName; // Asignar el nombre del archivo
-
-                // Subir el archivo a Google Drive
+                file.name = fileName;
                 uploadFileToDrive(file, token);
 
             }, function(error) {
@@ -147,7 +172,7 @@
             });
         }
 
-        // Función para subir el archivo a Google Drive
+        // Function to upload the file to Google Drive
         function uploadFileToDrive(file, token) {
             const metadata = {
                 'name': file.name,
@@ -175,9 +200,25 @@
             });
         }
 
-        // Iniciar la API de Google al cargar la página
+        // Initialize the Google API client
         function start() {
-            gapi.load('client:auth2', initClient);
+            // Initialize gapi *before* GIS.
+            gapi.load('client:auth2', () => {
+                initClient();
+
+                // GIS initialization must happen *after* gapi is loaded.
+                google.accounts.id.initialize({
+                    client_id: CLIENT_ID,
+                    login_uri: LOGIN_URI,  // REQUIRED:  Your page's login endpoint
+                    callback: onSignIn,     //  Old method.  Consider using 'render' below instead.
+                    onfailure: onSignInFailure
+                });
+                google.accounts.id.renderButton(  // Optional:  Use a custom button
+                    document.getElementById("uploadBtn"),
+                    { theme: "outline", size: "large", type: "standard", text: "signin_with", shape: "rectangular", logo_alignment: "left" }  // customization attributes
+                );
+                google.accounts.id.prompt(); // trigger the prompt
+            });
         }
 
         window.onload = start;
