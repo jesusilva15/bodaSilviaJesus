@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Boda 2025</title>
+    <title>Boda 2025 - Subida de Fotos</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -29,17 +29,68 @@
     <h1>Bienvenidos a nuestra Boda 2025</h1>
     <p>¡Sube tus fotos aquí y comparte con nosotros este gran día!</p>
 
-    <!-- Botón para abrir el Google Picker -->
+    <!-- Botón para iniciar el proceso de subida -->
     <button class="upload-btn" id="uploadBtn">Seleccionar Foto</button>
+
+    <!-- Div para mostrar errores o mensajes -->
+    <div id="message"></div>
 
     <!-- Cargar las nuevas librerías de Google Identity Services -->
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script src="https://apis.google.com/js/api.js" async defer></script>
 
     <script>
-        const CLIENT_ID = '381451210993-le8vnu9akeospf5otsth28gqfpfiqdor.apps.googleusercontent.com';  // Reemplaza con tu Client ID de Google
+       const CLIENT_ID = '381451210993-le8vnu9akeospf5otsth28gqfpfiqdor.apps.googleusercontent.com';  // Reemplaza con tu Client ID de Google
         const API_KEY = 'AIzaSyBRKOLQ8geTP_IEyazlzupv_AS-GhFskN8';      // Reemplaza con tu API Key de Google
         const FOLDER_ID = '1tOMPi7-mWwPJTBJioaxugDeT5Uo47MH_';  // ID de la carpeta en Google Drive
+
+        let oauthToken; // Variable para almacenar el token OAuth
+
+        // 1. Inicializar la API de Google (gapi)
+        function initClient() {
+            gapi.client.init({
+                apiKey: API_KEY,
+                clientId: CLIENT_ID,
+                discoveryDocs: ["https://www.googleapis.com/discovery/v1/apis/drive/v3/rest"],
+                scope: "https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/drive.readonly"
+            }).then(function () {
+                // 2. Escuchar cambios en el estado de autorización.
+                gapi.auth2.getAuthInstance().isSignedIn.listen(updateSigninStatus);
+
+                // 3.  Cargar el estado de autorización actual.
+                updateSigninStatus(gapi.auth2.getAuthInstance().isSignedIn.get());
+
+            }, function(error) {
+              appendPre(JSON.stringify(error, null, 2));
+            });
+        }
+
+        /**
+         *  Imprime el resultado en el elemento 'output'.
+         */
+        function appendPre(message) {
+          var pre = document.getElementById('message');
+          var textContent = document.createTextNode(message + '\n');
+          pre.appendChild(textContent);
+        }
+
+        // 4. Actualizar el estado de inicio de sesión.
+        var updateSigninStatus = function(isSignedIn) {
+          if (isSignedIn) {
+              console.log("Usuario autenticado");
+              oauthToken = gapi.auth2.getAuthInstance().currentUser.get().getAuthResponse().access_token;
+              document.getElementById('uploadBtn').onclick = function() { createPicker(oauthToken); };
+          } else {
+              console.log("Usuario no autenticado");
+              document.getElementById('uploadBtn').onclick = function() { handleAuthClick(); };
+          }
+        };
+
+        // 5.  Manejar el clic en el botón de autorización.
+        var handleAuthClick = function(event) {
+          gapi.auth2.getAuthInstance().signIn();
+        };
+
 
         // Función para manejar la subida con Google Picker
         function createPicker(token) {
@@ -63,31 +114,73 @@
         function pickerCallback(data) {
             if (data.action == google.picker.Action.PICKED) {
                 const fileId = data.docs[0].id;
+                const fileName = data.docs[0].name;
                 console.log("Archivo seleccionado: " + fileId);
-                alert("¡Foto subida con éxito!");
+
+                // Obtener el archivo desde Google Drive usando el fileId
+                getFileFromDrive(fileId, oauthToken, fileName);
+
+            } else if (data.action == google.picker.Action.CANCEL) {
+                console.log("Selección de archivo cancelada");
             }
         }
 
-        // Función para autenticar al usuario usando Google Identity Services (GIS)
-        function authenticate() {
-            google.accounts.id.prompt((response) => {
-                if (response.credential) {
-                    // Usar el token de autenticación proporcionado por GIS
-                    createPicker(response.credential);
-                } else {
-                    console.error("Autenticación fallida");
-                }
+        // Función para obtener el archivo desde Google Drive y subirlo
+        function getFileFromDrive(fileId, token, fileName) {
+            gapi.client.drive.files.get({
+                'fileId': fileId,
+                'alt': 'media' // Esto es importante para obtener el contenido del archivo
+            }).then(function(response) {
+                // El contenido del archivo está en response.body
+                const fileContent = response.body;
+
+                // Crear un objeto File simulado
+                const file = new Blob([fileContent]);
+                file.name = fileName; // Asignar el nombre del archivo
+
+                // Subir el archivo a Google Drive
+                uploadFileToDrive(file, token);
+
+            }, function(error) {
+                console.error("Error al obtener el archivo desde Drive: ", error);
+                alert("Error al obtener el archivo desde Drive.");
             });
         }
 
-        // Iniciar autenticación y mostrar el botón de Google
-        function init() {
-            // Iniciar la autenticación cuando el botón se haga clic
-            document.getElementById('uploadBtn').addEventListener('click', authenticate);
+        // Función para subir el archivo a Google Drive
+        function uploadFileToDrive(file, token) {
+            const metadata = {
+                'name': file.name,
+                'parents': [FOLDER_ID]
+            };
+
+            const formData = new FormData();
+            formData.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+            formData.append('file', file);
+
+            fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+                method: 'POST',
+                headers: {
+                    'Authorization': 'Bearer ' + token
+                },
+                body: formData
+            }).then(function(response) {
+                return response.json();
+            }).then(function(data) {
+                console.log('Archivo subido exitosamente:', data);
+                alert('Archivo subido exitosamente a Google Drive!');
+            }).catch(function(error) {
+                console.error('Error al subir el archivo:', error);
+                alert('Error al subir el archivo a Google Drive.');
+            });
         }
 
-        // Llamar a la función init cuando la página haya cargado
-        window.onload = init;
+        // Iniciar la API de Google al cargar la página
+        function start() {
+            gapi.load('client:auth2', initClient);
+        }
+
+        window.onload = start;
     </script>
 
     <footer>
