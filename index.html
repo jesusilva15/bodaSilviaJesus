@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Subir imagen a Google Drive</title>
+</head>
+<body>
+  <h2>Subir imagen a Google Drive</h2>
+  <form id="uploadForm" enctype="multipart/form-data">
+    <input type="file" name="file" accept="image/*" required />
+    <button type="submit">Subir</button>
+  </form>
+
+  <p id="response"></p>
+
+  <script>
+    const form = document.getElementById('uploadForm');
+    const responseText = document.getElementById('response');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const formData = new FormData(form);
+
+      try {
+        const res = await fetch('https://bodasilviajesus-1.onrender.com/upload', {
+          method: 'POST',
+          body: formData,
+        });
+
+        const data = await res.json();
+        if (res.ok) {
+          responseText.innerHTML = `✅ Imagen subida con ID: <b>${data.fileId}</b>`;
+        } else {
+          responseText.innerText = '❌ Error al subir: ' + (data.error || res.statusText);
+        }
+      } catch (err) {
+        responseText.innerText = '❌ Error de red: ' + err.message;
+      }
+    });
+  </script>
+</body>
+</html>
