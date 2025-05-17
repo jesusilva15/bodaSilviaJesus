@@ -96,7 +96,8 @@
         function init() {
             gapi.load('client:auth2', function() {
                 gapi.auth2.init({
-                    client_id: CLIENT_ID
+                    client_id: CLIENT_ID,
+                    cookiepolicy: 'single_host_origin'  // Configura la política de cookies
                 }).then(function () {
                     document.getElementById('uploadBtn').addEventListener('click', authenticate);
                 });
@@ -112,4 +113,3 @@
     </footer>
 </body>
 </html>
-y
