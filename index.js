@@ -11,10 +11,7 @@ app.use(fileUpload());
 
 const KEYFILEPATH = path.join(__dirname, 'credentials.json');
 const SCOPES = ['https://www.googleapis.com/auth/drive.file'];
-const auth = new google.auth.GoogleAuth({
-  credentials: JSON.parse(process.env.GOOGLE_CREDENTIALS),
-  scopes: ['https://www.googleapis.com/auth/drive.file'],
-});
+const auth = new google.auth.GoogleAuth({ keyFile: KEYFILEPATH, scopes: SCOPES });
 const drive = google.drive({ version: 'v3', auth });
 
 const FOLDER_ID = '1tOMPi7-mWwPJTBJioaxugDeT5Uo47MH_';
